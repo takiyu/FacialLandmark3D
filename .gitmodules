@@ -1,0 +1,3 @@
+[submodule "third_party/VulkanWrapper"]
+	path = third_party/VulkanWrapper
+	url = https://github.com/takiyu/VulkanWrapper

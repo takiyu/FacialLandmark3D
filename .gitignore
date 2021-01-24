@@ -1,0 +1,9 @@
+*.swp
+*.swo
+*.swn
+*.swm
+
+.metadata
+.ccls-cache
+
+build
