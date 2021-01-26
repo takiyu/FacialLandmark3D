@@ -27,42 +27,14 @@ layout(binding = 0) uniform UniformBuffer {
 } uniform_buf;
 
 layout (location = 0) in vec3 pos;
-layout (location = 1) in float id;
-layout (location = 2) in vec2 uv;
+layout (location = 1) in vec2 uv;
 
-layout (location = 0) out vec2 vtx_uv;
-layout (location = 1) out float vtx_id;
+layout (location = 0) out vec3 vtx_pos;
+layout (location = 1) out vec2 vtx_uv;
 
 void main() {
     gl_Position = uniform_buf.mvp_mat * vec4(pos, 1.0);
-    vtx_uv = uv;
-    vtx_id = id;
-}
-)";
-
-const std::string GEOM_SOURCE = R"(
-#version 460
-
-layout (triangles) in;
-layout (triangle_strip, max_vertices = 3) out;
-
-layout (location = 0) in vec2 vtx_uv[3];
-layout (location = 1) in float vtx_id[3];
-
-layout (location = 0) out vec2 geom_uv;
-layout (location = 1) out vec3 geom_ids;
-layout (location = 2) out vec3 geom_bary;
-
-void main(void) {
-    for (int i = 0; i < 3; i++) {
-        gl_Position = gl_in[i].gl_Position;
-        geom_uv = vtx_uv[i];
-        geom_ids = vec3(vtx_id[0], vtx_id[1], vtx_id[2]);
-        geom_bary = vec3(0.0);
-        geom_bary[i] = 1.0;
-        EmitVertex();
-    }
-    EndPrimitive();
+    vtx_pos = pos;
 }
 )";
 
@@ -71,35 +43,21 @@ const std::string FRAG_SOURCE = R"(
 
 layout (binding = 1) uniform sampler2D tex;
 
-layout (location = 0) in vec2 geom_uv;
-layout (location = 1) in vec3 geom_ids;
-layout (location = 2) in vec3 geom_bary;
+layout (location = 0) in vec3 vtx_pos;
+layout (location = 1) in vec2 vtx_uv;
 
 layout (location = 0) out vec4 frag_color;
 
-int ObtainArgMin(vec3 elems) {
-    float min_elem = elems[0];
-    int min_idx = 0;
-    for (int i = 1; i < 3; i++) {
-        if (elems[i] < min_elem) {
-            min_elem = elems[i];
-            min_idx = i;
-        }
-    }
-    return min_idx;
-}
-
 void main() {
-    int closest_idx = ObtainArgMin(geom_bary);
-    float id = geom_ids[closest_idx];
-    frag_color = vec4(vec3(id) / 10000, 1.0);
-    //frag_color = texture(tex, vec2(geom_uv.x, 1.0 - geom_uv.y));
+    frag_color = vec4(vec3(vtx_pos) / 10, 1.0);
+    vec2 uv = vec2(vtx_uv.x, 1.0 - vtx_uv.y);  // Y-flip
+    //frag_color = texture(tex, uv);
 }
 )";
 
 struct Vertex {
     glm::vec3 pos;  // Position
-    float id;    // Vertex ID
+    uint32_t id;    // Vertex ID
     glm::vec2 uv;   // Texture Coordinate
 };
 
@@ -165,7 +123,7 @@ static Mesh LoadObj(const std::string& filename) {
                 ret_vtx.pos = {tiny_vertices[idx0 + 0], tiny_vertices[idx0 + 1],
                                tiny_vertices[idx0 + 2]};
                 // Vertex ID
-                ret_vtx.id = static_cast<float>(tiny_idx.vertex_index) + 0.5f;
+                ret_vtx.id = tiny_idx.vertex_index;
             }
             if (0 <= tiny_idx.texcoord_index) {
                 // Texture coordinate
@@ -215,10 +173,6 @@ int main(int argc, char const* argv[]) {
     // Get a physical_device
     auto physical_device = vkw::GetFirstPhysicalDevice(instance);
 
-    // Set features
-    auto features = vkw::GetPhysicalFeatures(physical_device);
-    features->geometryShader = true;
-
     // Create surface
     auto surface = vkw::CreateSurface(instance, window);
     auto surface_format = vkw::GetSurfaceFormat(physical_device, surface);
@@ -228,7 +182,7 @@ int main(int argc, char const* argv[]) {
             vkw::GetGraphicPresentQueueFamilyIdx(physical_device, surface);
     // Create device
     auto device = vkw::CreateDevice(queue_family_idx, physical_device, N_QUEUES,
-                                    DISPLAY_ENABLE, features);
+                                    DISPLAY_ENABLE);
 
     // Create swapchain
     auto swapchain_pack =
@@ -314,8 +268,6 @@ int main(int argc, char const* argv[]) {
     vkw::GLSLCompiler glsl_compiler;
     auto vert_shader_module_pack = glsl_compiler.compileFromString(
             device, VERT_SOURCE, vk::ShaderStageFlagBits::eVertex);
-    auto geom_shader_module_pack = glsl_compiler.compileFromString(
-            device, GEOM_SOURCE, vk::ShaderStageFlagBits::eGeometry);
     auto frag_shader_module_pack = glsl_compiler.compileFromString(
             device, FRAG_SOURCE, vk::ShaderStageFlagBits::eFragment);
 
@@ -335,13 +287,10 @@ int main(int argc, char const* argv[]) {
     pipeline_info.color_blend_infos.resize(1);
     pipeline_info.face_culling = vk::CullModeFlagBits::eNone;
     auto pipeline_pack = vkw::CreateGraphicsPipeline(
-            device,
-            {vert_shader_module_pack, geom_shader_module_pack,
-             frag_shader_module_pack},
+            device, {vert_shader_module_pack, frag_shader_module_pack},
             {{0, sizeof(Vertex), vk::VertexInputRate::eVertex}},
             {{0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)},
-             {1, 0, vk::Format::eR32Sfloat, offsetof(Vertex, id)},
-             {2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv)}},
+             {1, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv)}},
             pipeline_info, {desc_set_pack}, render_pass_pack);
 
     const uint32_t n_cmd_bufs = 1;
