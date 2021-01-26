@@ -84,16 +84,30 @@ endfunction(setup_target_simple)
 # --------------------------- Third Party Libraries ----------------------------
 # ------------------------------------------------------------------------------
 # Vulkan Wrapper
+set(VKW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/third_party/VulkanWrapper)
 set(VKW_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(VKW_LINK_DYNAMIC_VK ON CACHE BOOL "")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/VulkanWrapper)
+add_subdirectory(${VKW_PATH})
 list(APPEND FACELMK3D_INCLUDE ${VKW_INCLUDE})
 list(APPEND FACELMK3D_LIBRARY ${VKW_LIBRARY})
 list(APPEND FACELMK3D_DEFINE ${VKW_DEFINE})
 
+# GLM
+list(APPEND FACELMK3D_INCLUDE ${VKW_PATH}/third_party/glm)
+
+# TinyObjLoader
+add_library(tinyobjloader ${VKW_PATH}/third_party/tinyobjloader/tiny_obj_loader.cc)
+list(APPEND FACELMK3D_LIBRARY tinyobjloader)
+
+# STB
+add_library(stb ${VKW_PATH}/example/utils/stb_impl.cpp)
+setup_target_simple(stb "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
+list(APPEND FACELMK3D_LIBRARY stb)
+
 # ------------------------------------------------------------------------------
 # ------------------------------- Main Internal --------------------------------
 # ------------------------------------------------------------------------------
+add_definitions(${FACELMK3D_DEFINE})
 add_executable(face_lmk_3d
                ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 setup_target(face_lmk_3d "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
