@@ -35,6 +35,7 @@ layout (location = 1) out vec2 vtx_uv;
 void main() {
     gl_Position = uniform_buf.mvp_mat * vec4(pos, 1.0);
     vtx_pos = pos;
+    vtx_uv = uv;
 }
 )";
 
@@ -47,11 +48,12 @@ layout (location = 0) in vec3 vtx_pos;
 layout (location = 1) in vec2 vtx_uv;
 
 layout (location = 0) out vec4 frag_color;
+layout (location = 1) out vec4 frag_pos;
 
 void main() {
-    frag_color = vec4(vec3(vtx_pos) / 10, 1.0);
     vec2 uv = vec2(vtx_uv.x, 1.0 - vtx_uv.y);  // Y-flip
-    //frag_color = texture(tex, uv);
+    frag_color = texture(tex, uv);
+    frag_pos = vec4(vtx_pos, 1.0);
 }
 )";
 
@@ -61,36 +63,39 @@ struct Vertex {
     glm::vec2 uv;   // Texture Coordinate
 };
 
+struct FloatImage {
+    std::vector<float> pixels;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t n_ch = 0;
+};
+
 struct Mesh {
     std::vector<Vertex> vertices;
-
-    std::vector<float> color_tex;  // Color texture (Unlit Shading)
-    uint32_t color_tex_w = 0;
-    uint32_t color_tex_h = 0;
+    FloatImage color_tex;  // Color texture (Unlit Shading)
 };
 
 std::string ExtractDirname(const std::string& path) {
     return path.substr(0, path.find_last_of('/') + 1);
 }
 
-std::vector<float> LoadTexture(const std::string& filename, const uint32_t n_ch,
-                               uint32_t* w, uint32_t* h) {
-    int tmp_w, tmp_h, dummy_c;
-    uint8_t* data = stbi_load(filename.c_str(), &tmp_w, &tmp_h, &dummy_c,
+FloatImage LoadImage(const std::string& filename, const uint32_t n_ch) {
+    // Load image file
+    int w, h, dummy_c;
+    uint8_t* data = stbi_load(filename.c_str(), &w, &h, &dummy_c,
                               static_cast<int>(n_ch));
-    (*w) = static_cast<uint32_t>(tmp_w);
-    (*h) = static_cast<uint32_t>(tmp_h);
-
-    std::vector<uint8_t> ret_tex_u8(data, data + (*w) * (*h) * n_ch);
-
+    // Cast to float array
+    std::vector<uint8_t> ret_tex_u8(data, data + w * h * n_ch);
     std::vector<float> ret_tex;
     for (auto&& a : ret_tex_u8) {
         ret_tex.push_back(a / 255.f);
     }
-
+    // Release raw image array
     stbi_image_free(data);
 
-    return ret_tex;
+    // Pack to structure
+    return FloatImage{ret_tex, static_cast<uint32_t>(w),
+                      static_cast<uint32_t>(h), n_ch};
 }
 
 static Mesh LoadObj(const std::string& filename) {
@@ -142,9 +147,7 @@ static Mesh LoadObj(const std::string& filename) {
         // Supports only 1 materials
         const tinyobj::material_t tiny_mat = tiny_mats[0];
         // Load color texture
-        ret_mesh.color_tex =
-                LoadTexture(dirname + tiny_mat.diffuse_texname, 4,
-                            &ret_mesh.color_tex_w, &ret_mesh.color_tex_h);
+        ret_mesh.color_tex = LoadImage(dirname + tiny_mat.diffuse_texname, 4);
     }
 
     return ret_mesh;
@@ -213,7 +216,7 @@ int main(int argc, char const* argv[]) {
     // Create color texture
     auto color_img_pack = vkw::CreateImagePack(
             physical_device, device, vk::Format::eR32G32B32A32Sfloat,
-            {mesh.color_tex_w, mesh.color_tex_h}, 1,
+            {mesh.color_tex.width, mesh.color_tex.height}, 1,
             vk::ImageUsageFlagBits::eSampled |
                     vk::ImageUsageFlagBits::eTransferDst,
             {}, true,  // tiling
@@ -300,8 +303,7 @@ int main(int argc, char const* argv[]) {
 
     // -----------------
     // Create source transfer buffer
-    const uint64_t tex_n_bytes =
-            mesh.color_tex.size() * sizeof(mesh.color_tex[0]);
+    const uint64_t tex_n_bytes = mesh.color_tex.pixels.size() * sizeof(float);
     vkw::BufferPackPtr trans_buf_pack = vkw::CreateBufferPack(
             physical_device, device, tex_n_bytes,
             vk::BufferUsageFlagBits::eTransferSrc, vkw::HOST_VISIB_COHER_PROPS);
@@ -340,8 +342,8 @@ int main(int argc, char const* argv[]) {
             is_col_tex_sent = true;
 
             // Send to buffer
-            vkw::SendToDevice(device, trans_buf_pack, mesh.color_tex.data(),
-                              tex_n_bytes);
+            vkw::SendToDevice(device, trans_buf_pack,
+                              mesh.color_tex.pixels.data(), tex_n_bytes);
             // Send buffer to image
             vkw::CopyBufferToImage(cmd_buf, trans_buf_pack,
                                    color_tex_pack->img_pack);
