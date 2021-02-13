@@ -109,5 +109,7 @@ list(APPEND FACELMK3D_LIBRARY stb)
 # ------------------------------------------------------------------------------
 add_definitions(${FACELMK3D_DEFINE})
 add_executable(face_lmk_3d
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/image.cpp
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp
                ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 setup_target(face_lmk_3d "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
