@@ -15,7 +15,7 @@ list(APPEND FACELMK3D_LIBRARY ${FACELMK3D_EXTERNAL_LIBRARY})
 # ------------------------------------------------------------------------------
 project(facial_landmark_3d CXX C)
 
-set(CMAKE_CXX_STANDARD 14)  # C++ 14
+set(CMAKE_CXX_STANDARD 17)  # C++ 17
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(LINK_TYPE STATIC)

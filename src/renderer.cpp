@@ -101,13 +101,15 @@ layout (binding = 1) uniform sampler2D tex;
 layout (location = 0) in vec3 vtx_pos;
 layout (location = 1) in vec2 vtx_uv;
 
-layout (location = 0) out vec4 frag_color;
-layout (location = 1) out vec4 frag_pos;
+layout (location = 0) out vec4 frag_window;
+layout (location = 1) out vec4 frag_color;
+layout (location = 2) out vec4 frag_pos;
 
 void main() {
     vec2 uv = vec2(vtx_uv.x, 1.0 - vtx_uv.y);  // Y-flip
     frag_color = texture(tex, uv);
     frag_pos = vec4(vtx_pos, 1.0);
+    frag_window = frag_color;  // debug output
 }
 )";
 
@@ -156,7 +158,18 @@ std::tuple<FloatImage, FloatImage> Renderer::draw(const glm::mat4& mvp_mat) {
     vkw::QueuePresent(m_queue, m_swapchain, curr_img_idx);
     vkw::WaitForFences(m_device, {draw_fence});
 
-    return {};
+    // Receive rendered image
+    const auto img_w = m_swapchain->size.width;
+    const auto img_h = m_swapchain->size.height;
+    FloatImage col_img = CreateImage(img_w, img_h, 4);
+    FloatImage pos_img = CreateImage(img_w, img_h, 4);
+    size_t n_img_bytes = img_w * img_h * 4 * sizeof(float);
+    vkw::RecvFromDevice(m_device, m_color_recv_buf, col_img.pixels.data(),
+                        col_img.pixels.size());
+    vkw::RecvFromDevice(m_device, m_pos_recv_buf, pos_img.pixels.data(),
+                        pos_img.pixels.size());
+
+    return std::make_tuple(std::move(col_img), std::move(pos_img));
 }
 
 void Renderer::init() {
@@ -183,7 +196,18 @@ void Renderer::init() {
     // Get queue
     m_queue = vkw::GetQueue(m_device, m_queue_family_idx, 0);
 
-    // Create depth buffer
+    // Create depth image
+    const auto COLOR_FORMAT = vk::Format::eR32G32B32A32Sfloat;
+    m_color_img = vkw::CreateImagePack(
+            m_physical_device, m_device, COLOR_FORMAT, m_swapchain->size, 1,
+            vk::ImageUsageFlagBits::eColorAttachment |
+                    vk::ImageUsageFlagBits::eTransferSrc,
+            {}, true);
+    m_pos_img = vkw::CreateImagePack(
+            m_physical_device, m_device, COLOR_FORMAT, m_swapchain->size, 1,
+            vk::ImageUsageFlagBits::eColorAttachment |
+                    vk::ImageUsageFlagBits::eTransferSrc,
+            {}, true);
     const auto DEPTH_FORMAT = vk::Format::eD32Sfloat;
     m_depth_img = vkw::CreateImagePack(
             m_physical_device, m_device, DEPTH_FORMAT, m_swapchain->size, 1,
@@ -194,8 +218,7 @@ void Renderer::init() {
     m_uniform_buf = vkw::CreateBufferPack(
             m_physical_device, m_device, sizeof(glm::mat4),
             vk::BufferUsageFlagBits::eUniformBuffer,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                    vk::MemoryPropertyFlagBits::eHostCoherent);
+            vkw::HOST_VISIB_COHER_PROPS);
     // Create color texture
     m_color_tex = vkw::CreateTexturePack(
             vkw::CreateImagePack(
@@ -224,10 +247,20 @@ void Renderer::init() {
 
     // Create render pass
     m_render_pass = vkw::CreateRenderPassPack();
-    // Add color attachment
+    // Add window attachment
     vkw::AddAttachientDesc(
             m_render_pass, m_surface_format, vk::AttachmentLoadOp::eClear,
             vk::AttachmentStoreOp::eStore, vk::ImageLayout::ePresentSrcKHR);
+    // Add color attachment
+    vkw::AddAttachientDesc(m_render_pass, COLOR_FORMAT,
+                           vk::AttachmentLoadOp::eClear,
+                           vk::AttachmentStoreOp::eStore,
+                           vk::ImageLayout::eColorAttachmentOptimal);
+    // Add position attachment
+    vkw::AddAttachientDesc(m_render_pass, COLOR_FORMAT,
+                           vk::AttachmentLoadOp::eClear,
+                           vk::AttachmentStoreOp::eStore,
+                           vk::ImageLayout::eColorAttachmentOptimal);
     // Add depth attachment
     vkw::AddAttachientDesc(m_render_pass, DEPTH_FORMAT,
                            vk::AttachmentLoadOp::eClear,
@@ -235,14 +268,17 @@ void Renderer::init() {
                            vk::ImageLayout::eDepthStencilAttachmentOptimal);
     // Add subpass
     vkw::AddSubpassDesc(m_render_pass, {},
-                        {{0, vk::ImageLayout::eColorAttachmentOptimal}},
-                        {1, vk::ImageLayout::eDepthStencilAttachmentOptimal});
+                        {{0, vk::ImageLayout::eColorAttachmentOptimal},
+                         {1, vk::ImageLayout::eColorAttachmentOptimal},
+                         {2, vk::ImageLayout::eColorAttachmentOptimal}},
+                        {3, vk::ImageLayout::eDepthStencilAttachmentOptimal});
     // Create render pass instance
     vkw::UpdateRenderPass(m_device, m_render_pass);
 
     // Create frame buffers for swapchain images
     m_framebuffers = vkw::CreateFrameBuffers(
-            m_device, m_render_pass, {nullptr, m_depth_img}, m_swapchain);
+            m_device, m_render_pass,
+            {nullptr, m_color_img, m_pos_img, m_depth_img}, m_swapchain);
 
     // Compile shaders
     vkw::GLSLCompiler glsl_compiler;
@@ -253,18 +289,17 @@ void Renderer::init() {
 
     // Create vertex buffer
     size_t vertex_buf_size = m_mesh.vertices.size() * sizeof(Vertex);
-    m_vtx_buf = vkw::CreateBufferPack(
-            m_physical_device, m_device, vertex_buf_size,
-            vk::BufferUsageFlagBits::eVertexBuffer,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                    vk::MemoryPropertyFlagBits::eHostCoherent);
+    m_vtx_buf =
+            vkw::CreateBufferPack(m_physical_device, m_device, vertex_buf_size,
+                                  vk::BufferUsageFlagBits::eVertexBuffer,
+                                  vkw::HOST_VISIB_COHER_PROPS);
     // Send vertices to GPU
     vkw::SendToDevice(m_device, m_vtx_buf, m_mesh.vertices.data(),
                       vertex_buf_size);
 
     // Create pipeline
     vkw::PipelineInfo pipeline_info;
-    pipeline_info.color_blend_infos.resize(1);
+    pipeline_info.color_blend_infos.resize(3);
     pipeline_info.face_culling = vk::CullModeFlagBits::eNone;
     m_pipeline = vkw::CreateGraphicsPipeline(
             m_device, {m_vert_shader, m_frag_shader},
@@ -278,7 +313,17 @@ void Renderer::init() {
     m_cmd_bufs = vkw::CreateCommandBuffersPack(m_device, m_queue_family_idx,
                                                n_cmd_bufs);
 
-    // Send texture to GPU
+    // Create buffer to receive rendered images
+    size_t n_img_bytes = m_swapchain->size.width * m_swapchain->size.height *
+                         sizeof(float) * 4;
+    m_color_recv_buf = vkw::CreateBufferPack(
+            m_physical_device, m_device, n_img_bytes,
+            vk::BufferUsageFlagBits::eTransferDst, vkw::HOST_VISIB_COHER_PROPS);
+    m_pos_recv_buf = vkw::CreateBufferPack(
+            m_physical_device, m_device, n_img_bytes,
+            vk::BufferUsageFlagBits::eTransferDst, vkw::HOST_VISIB_COHER_PROPS);
+
+    // Send color texture to GPU
     uint64_t tex_n_bytes = m_mesh.color_tex.pixels.size() * sizeof(float);
     auto trans_buf_pack = vkw::CreateBufferPack(  // Create temporal buffer
             m_physical_device, m_device, tex_n_bytes,
@@ -302,10 +347,10 @@ void Renderer::init() {
         vkw::BeginCommand(cmd_buf);
         const std::array<float, 4> clear_color = {0.f, 0.f, 0.f, 1.f};
         vkw::CmdBeginRenderPass(cmd_buf, m_render_pass, m_framebuffers[cmd_idx],
-                                {
-                                        vk::ClearColorValue(clear_color),
-                                        vk::ClearDepthStencilValue(1.0f, 0),
-                                });
+                                {vk::ClearColorValue(clear_color),
+                                 vk::ClearColorValue(clear_color),
+                                 vk::ClearColorValue(clear_color),
+                                 vk::ClearDepthStencilValue(1.f, 0)});
         vkw::CmdBindPipeline(cmd_buf, m_pipeline);
         const std::vector<uint32_t> dynamic_offsets = {0};
         vkw::CmdBindDescSets(cmd_buf, m_pipeline, {m_desc_set},
@@ -315,6 +360,8 @@ void Renderer::init() {
         vkw::CmdSetScissor(cmd_buf, m_swapchain->size);
         vkw::CmdDraw(cmd_buf, m_mesh.vertices.size());
         vkw::CmdEndRenderPass(cmd_buf);
+        vkw::CopyImageToBuffer(cmd_buf, m_color_img, m_color_recv_buf);
+        vkw::CopyImageToBuffer(cmd_buf, m_pos_img, m_pos_recv_buf);
         vkw::EndCommand(cmd_buf);
     }
 }

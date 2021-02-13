@@ -31,19 +31,19 @@ int main(int argc, char const* argv[]) {
     renderer.loadObj(OBJ_FILENAME);
 
     // Camera matrix
-    const glm::mat4 model_mat = glm::scale(glm::vec3(1.00f));
-    const glm::mat4 view_mat =
-            glm::lookAt(glm::vec3(0.f, 10.f, 100.f), glm::vec3(0.f, 10.f, 0.f),
+    const glm::mat4 MODEL_MAT = glm::scale(glm::vec3(1.00f));
+    const glm::mat4 VIEW_MAT =
+            glm::lookAt(glm::vec3(0.f, 20.f, 50.f), glm::vec3(0.f, 20.f, 0.f),
                         glm::vec3(0.f, 1.f, 0.f));
-    const glm::mat4 proj_mat = glm::perspective(
-            glm::radians(45.0f),
+    const glm::mat4 PROJ_MAT = glm::perspective(
+            glm::radians(45.f),
             static_cast<float>(WIN_W) / static_cast<float>(WIN_H), 0.1f,
-            1000.0f);
+            1000.f);
 
     // Rendering loop
     while (!glfwWindowShouldClose(window.get())) {
-        glm::mat4 mvp_mat = proj_mat * view_mat * model_mat;
-        renderer.draw(mvp_mat);
+        glm::mat4 mvp_mat = PROJ_MAT * VIEW_MAT * MODEL_MAT;
+        auto&& [col_img, pos_img] = renderer.draw(mvp_mat);
 
         vkw::PrintFps();
         glfwPollEvents();

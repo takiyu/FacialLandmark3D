@@ -9,7 +9,12 @@ END_VKW_SUPPRESS_WARNING
 // -----------------------------------------------------------------------------
 // -------------------------------- Float Image --------------------------------
 // -----------------------------------------------------------------------------
-FloatImage LoadImage(const std::string& filename, const uint32_t n_ch) {
+FloatImage CreateImage(uint32_t width, uint32_t height, uint32_t n_ch) {
+    uint32_t n_pixs = width * height * n_ch;
+    return FloatImage{std::vector<float>(n_pixs), width, height, n_ch};
+}
+
+FloatImage LoadImage(const std::string& filename, uint32_t n_ch) {
     // Load image file
     int w_tmp, h_tmp, dummy_c;
     uint8_t* data = stbi_load(filename.c_str(), &w_tmp, &h_tmp, &dummy_c,

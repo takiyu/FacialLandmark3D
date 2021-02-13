@@ -15,7 +15,9 @@ struct FloatImage {
     uint32_t n_ch = 0;
 };
 
-FloatImage LoadImage(const std::string& filename, const uint32_t n_ch = 4);
+FloatImage CreateImage(uint32_t width, uint32_t height, uint32_t n_ch);
+
+FloatImage LoadImage(const std::string& filename, uint32_t n_ch = 4);
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------

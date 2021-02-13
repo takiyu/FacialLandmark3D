@@ -52,6 +52,8 @@ private:
     vk::UniqueDevice m_device;
     vkw::SwapchainPackPtr m_swapchain;
     vk::Queue m_queue;
+    vkw::ImagePackPtr m_color_img;
+    vkw::ImagePackPtr m_pos_img;
     vkw::ImagePackPtr m_depth_img;
     vkw::BufferPackPtr m_uniform_buf;
     vkw::TexturePackPtr m_color_tex;
@@ -64,6 +66,8 @@ private:
     vkw::BufferPackPtr m_vtx_buf;
     vkw::PipelinePackPtr m_pipeline;
     vkw::CommandBuffersPackPtr m_cmd_bufs;
+    vkw::BufferPackPtr m_color_recv_buf;
+    vkw::BufferPackPtr m_pos_recv_buf;
 };
 
 // -----------------------------------------------------------------------------
