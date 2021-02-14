@@ -163,11 +163,10 @@ std::tuple<FloatImage, FloatImage> Renderer::draw(const glm::mat4& mvp_mat) {
     const auto img_h = m_swapchain->size.height;
     FloatImage col_img = CreateImage(img_w, img_h, 4);
     FloatImage pos_img = CreateImage(img_w, img_h, 4);
-    size_t n_img_bytes = img_w * img_h * 4 * sizeof(float);
     vkw::RecvFromDevice(m_device, m_color_recv_buf, col_img.pixels.data(),
-                        col_img.pixels.size());
+                        col_img.pixels.size() * sizeof(float));
     vkw::RecvFromDevice(m_device, m_pos_recv_buf, pos_img.pixels.data(),
-                        pos_img.pixels.size());
+                        pos_img.pixels.size() * sizeof(float));
 
     return std::make_tuple(std::move(col_img), std::move(pos_img));
 }

@@ -1,9 +1,8 @@
 #ifndef RENDERER_H_20210212
 #define RENDERER_H_20210212
-#include <vkw/vkw.h>
-#include <vkw/warning_suppressor.h>
-
 #include "image.h"
+
+#include <vkw/vkw.h>
 
 BEGIN_VKW_SUPPRESS_WARNING
 #include <glm/geometric.hpp>
@@ -11,9 +10,6 @@ BEGIN_VKW_SUPPRESS_WARNING
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 END_VKW_SUPPRESS_WARNING
-
-#include <iostream>
-#include <sstream>
 
 // -----------------------------------------------------------------------------
 // ------------------------------- 3D Structures -------------------------------

@@ -1,5 +1,6 @@
 #ifndef IMAGE_H_20210213
 #define IMAGE_H_20210213
+#include <vkw/warning_suppressor.h>
 
 #include <iostream>
 #include <sstream>

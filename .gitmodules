@@ -1,3 +1,6 @@
 [submodule "third_party/VulkanWrapper"]
 	path = third_party/VulkanWrapper
 	url = https://github.com/takiyu/VulkanWrapper
+[submodule "third_party/dlib"]
+	path = third_party/dlib
+	url = https://github.com/davisking/dlib

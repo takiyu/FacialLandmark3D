@@ -1,10 +1,10 @@
 #include "image.h"
 
-#include <vkw/warning_suppressor.h>
-
 BEGIN_VKW_SUPPRESS_WARNING
 #include <stb/stb_image.h>
 END_VKW_SUPPRESS_WARNING
+
+#include <string>
 
 // -----------------------------------------------------------------------------
 // -------------------------------- Float Image --------------------------------

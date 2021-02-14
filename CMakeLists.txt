@@ -104,12 +104,18 @@ add_library(stb ${VKW_PATH}/example/utils/stb_impl.cpp)
 setup_target_simple(stb "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
 list(APPEND FACELMK3D_LIBRARY stb)
 
+# dlib
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlib)
+list(APPEND FACELMK3D_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlib)
+list(APPEND FACELMK3D_LIBRARY dlib)
+
 # ------------------------------------------------------------------------------
 # ------------------------------- Main Internal --------------------------------
 # ------------------------------------------------------------------------------
 add_definitions(${FACELMK3D_DEFINE})
-add_executable(face_lmk_3d
+add_executable(main
                ${CMAKE_CURRENT_SOURCE_DIR}/src/image.cpp
                ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/landmarker.cpp
                ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-setup_target(face_lmk_3d "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
+setup_target(main "${FACELMK3D_INCLUDE}" "${FACELMK3D_LIBRARY}")
