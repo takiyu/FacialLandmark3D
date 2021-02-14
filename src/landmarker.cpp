@@ -61,16 +61,6 @@ std::vector<Landmark> LandmarkDetector::detect(const FloatImage& col_img,
     // Predict 2D landmarks
     dlib::full_object_detection dlib_lmk = m_predictor(col_img_dlib, face_rect);
 
-    // Show debug image (color)
-    // dlib::image_window col_dlib_window(col_img_dlib);
-    // col_dlib_window.add_overlay(dlib::render_face_detections({dlib_lmk}));
-    // col_dlib_window.wait_until_closed();
-    // Show debug image (position)
-    // auto&& pos_img_dlib = CastToDlibImg(pos_img);
-    // dlib::image_window pos_dlib_window(pos_img_dlib);
-    // pos_dlib_window.add_overlay(dlib::render_face_detections({dlib_lmk}));
-    // pos_dlib_window.wait_until_closed();
-
     // Parse landmarks
     std::vector<Landmark> landmarks;
     for (uint32_t i = 0; i < dlib_lmk.num_parts(); i++) {
@@ -105,8 +95,26 @@ std::vector<Landmark> LandmarkDetector::detect(const FloatImage& col_img,
         landmarks.push_back(lmk);
     }
 
+    // Store
+    m_prev_col_img = std::move(col_img_dlib);
+    m_prev_lmk = std::move(dlib_lmk);
+
     return landmarks;
 }
+
+void LandmarkDetector::show() const {
+    // Show debug image (color)
+    dlib::image_window col_dlib_window(m_prev_col_img);
+    col_dlib_window.add_overlay(dlib::render_face_detections({m_prev_lmk}));
+    col_dlib_window.wait_until_closed();
+
+    // Show debug image (position)
+    // auto&& pos_img_dlib = CastToDlibImg(pos_img);
+    // dlib::image_window pos_dlib_window(pos_img_dlib);
+    // pos_dlib_window.add_overlay(dlib::render_face_detections({dlib_lmk}));
+    // pos_dlib_window.wait_until_closed();
+}
+
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------

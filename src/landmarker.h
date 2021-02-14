@@ -28,10 +28,14 @@ public:
     LandmarkDetector(const std::string& predictor_path);
     std::vector<Landmark> detect(const FloatImage& col_img,
                                  const FloatImage& pos_img, const Mesh& mesh);
+    void show() const;
 
 private:
     dlib::frontal_face_detector m_detector;
     dlib::shape_predictor m_predictor;
+
+    dlib::array2d<dlib::rgb_pixel> m_prev_col_img;
+    dlib::full_object_detection m_prev_lmk;
 };
 
 // -----------------------------------------------------------------------------

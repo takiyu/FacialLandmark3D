@@ -25,13 +25,14 @@ int main(int argc, char const* argv[]) {
     const uint32_t WIN_W = 600;
     const uint32_t WIN_H = 600;
     auto window = vkw::InitGLFWWindow(WIN_TITLE, WIN_W, WIN_H);
+    glfwHideWindow(window.get());
 
     // Create Renderer
     Renderer renderer(window);
     // Create Landmark detector
     const std::string& PREDICTOR_PATH =
-            "../data/shape_predictor_68_face_landmarks.dat";
-            // "../data/shape_predictor_5_face_landmarks.dat";
+            // "../data/shape_predictor_68_face_landmarks.dat";
+            "../data/shape_predictor_5_face_landmarks.dat";
     LandmarkDetector landmarker(PREDICTOR_PATH);
 
     // Load mesh
@@ -57,11 +58,11 @@ int main(int argc, char const* argv[]) {
         auto&& col_img = std::get<0>(col_pos_imgs);
         auto&& pos_img = std::get<1>(col_pos_imgs);
 
-        // Landmark
+        // Detect landmarks
         const auto& lmks = landmarker.detect(col_img, pos_img, mesh);
 
-        // Print result
         if (!lmks.empty()) {
+            // Print result
             for (uint32_t lmk_idx = 0; lmk_idx < lmks.size(); lmk_idx++) {
                 const auto& lmk = lmks[lmk_idx];
                 const auto& lmk_2d = lmk.lmk_2d;
@@ -75,6 +76,9 @@ int main(int argc, char const* argv[]) {
                           << lmk_3d.z << std::endl;
                 std::cout << "  vertex index: " << vtx_idx << std::endl;
             }
+
+            // Show Dlib window (debug)
+            landmarker.show();
         }
 
         glfwPollEvents();
