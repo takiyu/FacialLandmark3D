@@ -42,6 +42,8 @@ Mesh LoadObj(const std::string& filename) {
                 auto idx0 = static_cast<uint32_t>(tiny_idx.vertex_index * 3);
                 ret_vtx.pos = {tiny_vertices[idx0 + 0], tiny_vertices[idx0 + 1],
                                tiny_vertices[idx0 + 2]};
+                // Vertex index
+                ret_vtx.vtx_idx = tiny_idx.vertex_index;
             }
             if (0 <= tiny_idx.texcoord_index) {
                 // Texture coordinate
@@ -128,6 +130,10 @@ Renderer::Renderer(const vkw::WindowPtr& window) {
 void Renderer::loadObj(const std::string& filename) {
     m_mesh = LoadObj(filename);
     m_inited = false;
+}
+
+const Mesh& Renderer::getMesh() const {
+    return m_mesh;
 }
 
 std::tuple<FloatImage, FloatImage> Renderer::draw(const glm::mat4& mvp_mat) {

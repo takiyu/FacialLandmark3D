@@ -1,8 +1,8 @@
 #ifndef RENDERER_H_20210212
 #define RENDERER_H_20210212
-#include "image.h"
-
 #include <vkw/vkw.h>
+
+#include "image.h"
 
 BEGIN_VKW_SUPPRESS_WARNING
 #include <glm/geometric.hpp>
@@ -15,13 +15,14 @@ END_VKW_SUPPRESS_WARNING
 // ------------------------------- 3D Structures -------------------------------
 // -----------------------------------------------------------------------------
 struct Vertex {
-    glm::vec3 pos;  // Position
-    glm::vec2 uv;   // Texture Coordinate
+    glm::vec3 pos;   // Position
+    glm::vec2 uv;    // Texture Coordinate
+    uint32_t vtx_idx;  // Vertex Index
 };
 
 struct Mesh {
-    std::vector<Vertex> vertices;
-    FloatImage color_tex;  // Color texture (Unlit Shading)
+    std::vector<Vertex> vertices;  // Flatten vertices over all meshes
+    FloatImage color_tex;          // Color texture (Unlit Shading)
 };
 
 // -----------------------------------------------------------------------------
@@ -31,6 +32,7 @@ class Renderer {
 public:
     Renderer(const vkw::WindowPtr& window);
     void loadObj(const std::string& filename);
+    const Mesh& getMesh() const;
     std::tuple<FloatImage, FloatImage> draw(const glm::mat4& mvp_mat);
 
 private:
