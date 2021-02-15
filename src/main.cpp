@@ -8,6 +8,18 @@
 namespace {
 
 // -----------------------------------------------------------------------------
+// ------------------------------ Constant Values ------------------------------
+// -----------------------------------------------------------------------------
+const std::string OBJ_FILENAME = "../data/Rhea_45_Small.obj";
+const std::string& PREDICTOR_PATH =
+        // "../data/shape_predictor_68_face_landmarks.dat";
+        "../data/shape_predictor_5_face_landmarks.dat";
+const uint32_t WIN_W = 600;
+const uint32_t WIN_H = 600;
+const float FOV = glm::radians(20.f);
+const float CAM_DIST_SCALE = 1.5f / glm::tan(FOV);
+
+// -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 glm::mat4 GenViewMatrix(const Mesh& mesh, float dist_scale) {
@@ -43,31 +55,23 @@ int main(int argc, char const* argv[]) {
 
     // Create Vulkan window
     const std::string WIN_TITLE = "Face Landmark 3D";
-    const uint32_t WIN_W = 600;
-    const uint32_t WIN_H = 600;
     auto window = vkw::InitGLFWWindow(WIN_TITLE, WIN_W, WIN_H);
     glfwHideWindow(window.get());
 
     // Create Renderer
     Renderer renderer(window);
     // Create Landmark detector
-    const std::string& PREDICTOR_PATH =
-            // "../data/shape_predictor_68_face_landmarks.dat";
-            "../data/shape_predictor_5_face_landmarks.dat";
     LandmarkDetector landmarker(PREDICTOR_PATH);
 
     // Load mesh
-    const std::string OBJ_FILENAME = "../data/Rhea_45_Small.obj";
     renderer.loadObj(OBJ_FILENAME);
     const auto& mesh = renderer.getMesh();
 
     // Camera matrix
     const glm::mat4 MODEL_MAT = glm::scale(glm::vec3(1.00f));
-    const float CAM_DIST_SCALE = 1.5f;
     const glm::mat4 view_mat = GenViewMatrix(mesh, CAM_DIST_SCALE);
     const glm::mat4 PROJ_MAT = glm::perspective(
-            glm::radians(45.f),
-            static_cast<float>(WIN_W) / static_cast<float>(WIN_H), 0.1f,
+            FOV, static_cast<float>(WIN_W) / static_cast<float>(WIN_H), 0.1f,
             1000.f);
     glm::mat4 mvp_mat = PROJ_MAT * view_mat * MODEL_MAT;
 
