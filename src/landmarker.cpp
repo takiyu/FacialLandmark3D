@@ -49,10 +49,7 @@ std::vector<Landmark> LandmarkDetector::detect(const FloatImage& col_img,
 
     // Detect face
     const std::vector<dlib::rectangle> face_rects = m_detector(col_img_dlib);
-    if (face_rects.empty()) {
-        return {};
-    }
-    std::cout << face_rects.size() << " faces are detected." << std::endl;
+    std::cout << "Detected faces: " << face_rects.size() << std::endl;
     if (face_rects.size() != 1) {
         return {};
     }

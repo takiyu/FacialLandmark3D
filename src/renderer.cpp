@@ -59,9 +59,11 @@ Mesh LoadObj(const std::string& filename) {
     // Load textures
     const auto& tiny_mats = obj_reader.GetMaterials();
     if (tiny_mats.empty()) {
+        std::cout << "Empty texture is not supported" << std::endl;
         throw std::runtime_error("Empty texture is not supported");
     }
     if (1 < tiny_mats.size()) {
+        std::cout << "Multiple textures are not supported" << std::endl;
         throw std::runtime_error("Multiple textures are not supported");
     }
     // Supports only 1 materials
